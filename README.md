@@ -1,12 +1,9 @@
 # Paper Metadata
 
-Title: Construction of exact refinement for the two-dimensional hierarchical de Rham complex
-
-Year: 2026
-
-Authors: Diogo C. Cabanas, Kendrick M. Shepherd, Deepesh Toshniwal, and Rafael Vázquez
-
-Links: [arXiv](https://arxiv.org/abs/2502.19542)
+- Title: Construction of exact refinement for the two-dimensional hierarchical de Rham complex
+- Year: 2026
+- Authors: Diogo C. Cabanas, Kendrick M. Shepherd, Deepesh Toshniwal, and Rafael Vázquez
+- Links: [arXiv](https://arxiv.org/abs/2502.19542)
 
 # Running the examples
 
