@@ -119,3 +119,29 @@ function get_elements_in_box(
 
     return elements_in_box
 end
+
+function export_form_fields_to_vtk(
+    form_sols,
+    var_names,
+    filename;
+    n_subcells::Int=1,
+    degree::Int=4,
+    output_directory_tree::Vector{String}=["exports"],
+)
+	folder_path = joinpath(pwd(), output_directory_tree...)
+	mkpath(folder_path)
+    for (form_sol, var_name) in zip(form_sols, var_names)
+        println("Writing form '$var_name' to file ...")
+        output_file = joinpath(folder_path, "$filename-$var_name.vtu")
+        Plot.plot(
+            form_sol;
+            vtk_filename=output_file,
+            n_subcells=n_subcells,
+            degree=degree,
+            ascii=false,
+            compress=false,
+        )
+    end
+
+    return nothing
+end
