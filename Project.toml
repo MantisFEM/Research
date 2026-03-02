@@ -1,2 +1,5 @@
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Mantis = "45fd81cf-4570-4cb4-b51d-06adeaefc15d"
+Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
