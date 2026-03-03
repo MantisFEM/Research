@@ -1,7 +1,5 @@
 ---
 title: "README"
-bibliography: references.bib
-csl: apa.csl
 ---
 
 # Summary
