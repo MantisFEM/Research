@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 jobs:
-  generate-readme:
+  update-readme:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,7 +38,6 @@ jobs:
       - name: Check if README.md is up to date
         run: |
           if ! git diff --exit-code -- README.md; then
-            echo "README.md is out of date. Run update-readme.sh and re-commit the result."
-            git --no-pager diff -- README.md
+            echo -e "\nREADME.md is out of date. Run update-readme.sh and re-commit the result."
             exit 1
           fi
