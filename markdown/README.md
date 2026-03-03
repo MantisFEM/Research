@@ -13,6 +13,8 @@ https://github.com/MantisFEM/Research.git`, or to check out a single publication
 branch `name/of/publication` you can run `git clone --single-branch
 --branch=name/of/publication https://github.com/MantisFEM/Research.git`.
 
+Testing workflow.
+
 # Publications
 
 ## Papers
