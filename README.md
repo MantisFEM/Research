@@ -10,6 +10,10 @@
 All the numerical results, show in Section 7, in the paper were implemented as in the `.jl`
 files included in this repository.
 
+Note that cloning this repository will include all branches, so, if you are only interested
+in running the examples in this branch you can use `git clone --single-branch
+--branch=paper/2026/L-chain https://github.com/MantisFEM/Research.git`.
+
 A helper script, `run_examples.sh`, is also included. This will instantiate the Julia
 project, run all the examples, and create and populate an `exports` folder with the results.
 Be sure to make the script executable by running `chmod +x run_examples.sh`.
