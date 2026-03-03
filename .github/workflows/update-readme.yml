@@ -1,0 +1,44 @@
+name: Generate README.md
+
+on:
+  pull_request:
+    paths:
+      - "markdown/README.md"
+      - "markdown/references.bib"
+      - "markdown/apa.csl"
+      - "update-readme.sh"
+      - ".github/workflows/update-readme.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "markdown/README.md"
+      - "markdown/references.bib"
+      - "markdown/apa.csl"
+      - "update-readme.sh"
+      - ".github/workflows/update-readme.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  generate-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Pandoc
+        uses: pandoc/actions/setup@v1
+        with:
+          version: "3.1.13"
+
+      - name: Run README update script
+        run: bash update-readme.sh
+
+      - name: Check if README.md is up to date
+        run: |
+          if ! git diff --exit-code -- README.md; then
+            echo "README.md is out of date. Run update-readme.sh and re-commit the result."
+            git --no-pager diff -- README.md
+            exit 1
+          fi
