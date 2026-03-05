@@ -7,8 +7,9 @@
 
 # Running the examples
 
-All the numerical results, show in Section 7, in the paper were implemented as in the `.jl`
-files included in this repository.
+All the numerical results, show in Section 7 of the paper, were implemented as in the `.jl`
+files included in this branch. Each of the files has detailed comments describing the
+numerical test being done.
 
 Note that cloning this repository will include all branches, so, if you are only interested
 in running the examples in this branch you can use `git clone --single-branch
