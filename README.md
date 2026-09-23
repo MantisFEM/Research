@@ -1,23 +1,44 @@
-# Summary
+# Paper Metadata
 
-In this repository you can an archive of the use of ‘Mantis’ across research publications. Each branch is dedicated to one of these publications, and the current branch, `main`, provides a list of links for all branches.
+- Title: Weakly-$C^1$ solutions to the biharmonic problem on multi-patch domains
+- Year: 2026
+- Authors: Joey Dekker, Artur Palha, and Deepesh Toshniwal
+- Links: [article](https://doi.org/10.1016/j.cam.2026.118179)
 
-If you whish to look at all publications, you can run `git clone https://github.com/MantisFEM/Research.git`, or to check out a single publication, under branch `name/of/publication` you can run `git clone --single-branch --branch=name/of/publication https://github.com/MantisFEM/Research.git`.
+# Running the examples
 
-# Publications
+The research conducted for this paper was started before `Mantis` became publicly available.
+Hence, the code provided in this branch includes the required (older) `Mantis` source code.
+All the numerical results, shown in section 5 of the paper, are available as `.jl` files in this branch.
 
-## Papers
+Note that cloning this repository will include all branches, so, if you are only interested in running the examples in this branch you can use 
+```bash
+  git clone --single-branch --branch=paper/2026/Weakly-C1 https://github.com/MantisFEM/Research.git.
+```
 
-- Cabanas, Shepherd, Toshniwal, & Vázquez (2025) ([paper](https://arxiv.org/abs/2502.19542), [branch](https://github.com/MantisFEM/Research/tree/paper/2026/L-chain)).
+To run an example (replace '#-name' by the appropriate part of the filename):
 
-# References
+```bash
+  julia --project TestCase#-Name.jl
+```
 
-<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0" line-spacing="2">
+This will produce a csv with the computed data.
 
-<div id="ref-Cabanas2025" class="csl-entry">
+To plot the data (replace '#' by the number of the test case):
 
-Cabanas, D. C., Shepherd, K. M., Toshniwal, D., & Vázquez, R. (2025). *Construction of exact refinements for the two-dimensional HB/THB-spline de Rham complex*. <https://doi.org/10.48550/ARXIV.2502.19542>
+```bash
+  julia --project -i PlotTestCase#.jl
+```
 
-</div>
+This will open the Julia REPL after setting things up. Once this is open, you can use
 
-</div>
+```julia
+  julia> display(figL2) # or figH1, figH2, figjump. TestCase5 only has a figH1.
+```
+
+to view the created figures.
+
+
+For full reproducibility of the results we also include a `Manifest.toml`. 
+If, for some reason, this leads to issues, you can try to delete it and retry to instantiate the project using just the Project.toml.
+The code provided in this branch was last run using Julia 1.13.0.

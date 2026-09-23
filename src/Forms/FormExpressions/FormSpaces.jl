@@ -1,0 +1,342 @@
+############################################################################################
+#                                        Structure                                         #
+############################################################################################
+
+"""
+    FormSpace{manifold_dim, form_rank, G, F} <:
+    AbstractFormSpace{manifold_dim, form_rank, G}
+
+Concrete implementation of a function space for differential forms.
+
+# Fields
+- `geometry::G`: The geometry of the manifold
+- `fem_space::F`: The finite element space(s) used for the form components
+- `label::String`: Label for the form space
+
+# Type parameters
+- `manifold_dim`: Dimension of the manifold
+- `form_rank`: Rank of the differential form
+- `G`: Type of the geometry
+- `F`: Type of the finite element space
+
+# Inner Constructors
+- `FormSpace(form_rank::Int, geometry::G, fem_space::F, label::String)`: General
+    constructor for differential form spaces.
+"""
+struct FormSpace{manifold_dim, form_rank, G, F} <:
+       AbstractFormSpace{manifold_dim, form_rank, G}
+    geometry::G
+    fem_space::F
+    label::String
+
+    """
+        FormSpace(
+            form_rank::Int, geometry::G, fem_space::F, label::String
+        ) where {
+            manifold_dim,
+            num_components,
+            num_patches,
+            G <: Geometry.AbstractGeometry{manifold_dim},
+            F <: FunctionSpaces.AbstractFESpace{manifold_dim, num_components, num_patches},
+        }
+
+    General constructor for differential form spaces.
+
+    # Arguments
+    - `form_rank::Int`: Differential form rank.
+    - `geometry::G`: The geometry where the form is defined.
+    - `fem_space::F`: The function space used to represent the form.
+    - `label::String`: The label of the form space.
+
+    # Returns
+    - `FormSpace{manifold_dim, form_rank, G, F}`: The FormSpace structure.
+    """
+    function FormSpace(
+        form_rank::Int, geometry::G, fem_space::F, label::String
+    ) where {
+        manifold_dim,
+        num_components,
+        num_patches,
+        G <: Geometry.AbstractGeometry{manifold_dim},
+        F <: FunctionSpaces.AbstractFESpace{manifold_dim, num_components, num_patches},
+    }
+        if (form_rank ∈ Set([0, manifold_dim])) && (num_components > 1)
+            throw(
+                ArgumentError(
+                    "Mantis.Forms.FormSpace: form_rank = $form_rank with " *
+                    "manifold_dim = $manifold_dim requires FE space with only one " *
+                    "component (got num_compoents = $num_components).",
+                ),
+            )
+        elseif (form_rank ∉ Set([0, manifold_dim])) && (num_components != manifold_dim)
+            throw(
+                ArgumentError(
+                    "Mantis.Forms.FormSpace: form_rank = $form_rank with " *
+                    "manifold_dim = $manifold_dim requires a FE space with " *
+                    "num_components = $manifold_dim (got num_components = $num_components).",
+                ),
+            )
+        end
+
+        return new{manifold_dim, form_rank, G, F}(geometry, fem_space, label)
+    end
+
+    function FormSpace(
+        ::Val{form_rank}, geometry::G, fem_space::F, label::String
+    ) where {
+        form_rank,
+        manifold_dim,
+        num_components,
+        num_patches,
+        G <: Geometry.AbstractGeometry{manifold_dim},
+        F <: FunctionSpaces.AbstractFESpace{manifold_dim, num_components, num_patches},
+    }
+        return new{manifold_dim, form_rank, G, F}(geometry, fem_space, label)
+    end
+end
+############################################################################################
+#                                   Getters and setters                                    #
+############################################################################################
+
+get_form(form_space::FormSpace) = form_space
+
+get_estimated_nnz_per_elem(form_space::FormSpace) = get_max_local_dim(form_space)
+
+############################################################################################
+#                                     Evaluate methods                                     #
+############################################################################################
+
+"""
+    evaluate(
+        form_space::FormSpace{manifold_dim, form_rank, G},
+        element_idx::Int,
+        xi::Points.AbstractPoints{manifold_dim},
+    ) where {manifold_dim, form_rank, G}
+
+Evaluate the basis functions of a differential form space at given canonical points `xi`
+mapped to the parametric element given by `element_idx`.
+
+# Arguments
+- `form_space::FormSpace{manifold_dim, form_rank, G}`: The differential form space.
+- `element_idx::Int`: The parametric element identifier.
+- `xi::NTuple{manifold_dim, Vector{Float64}`: The set of canonical points.
+
+# Returns
+- `Vector{Matrix{Float64}}`: Vector of length equal to the number of components of the form,
+    where each entry is a `Matrix{Float64}`  of size `(n_evaluation_points,
+    n_basis_functions)`
+- `form_basis_indices::Vector{Vector{Int}}`: The basis function indices evaluated at the
+    canonical coordinates of the element.
+"""
+function evaluate(
+    form_space::FormSpace{manifold_dim, form_rank, G},
+    element_idx::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+) where {manifold_dim, form_rank, G}
+    # The form space is made up of components
+    # e.g,
+    #   0-forms: single component
+    #   1-forms:(dξ₁, dξ₂) (2D)
+    #   1-forms:(dξ₁, dξ₂, dξ₃) (3D)
+    #   2-forms:(dξ₁dξ₂) (2D)
+    #   2-forms:(dξ₂dξ₃, dξ₃dξ₁, dξ₁dξ₂) (3D)
+    #   3-forms: single component
+    # We use the numbering of the function space.
+
+    # Evaluate the form spaces
+    local_form_basis, form_basis_indices = _evaluate_form_in_canonical_coordinates(
+        form_space, element_idx, xi, 0
+    )  # (only evaluate the basis (0-th order derivative))
+
+    return local_form_basis[1][1], form_basis_indices
+end
+
+"""
+    _evaluate_form_in_canonical_coordinates(
+        form_space::FormSpace{manifold_dim, form_rank, G},
+        element_idx::Int,
+        xi::Points.AbstractPoints{manifold_dim},
+        nderivatives::Int,
+    ) where {manifold_dim, form_rank, G}
+
+Evaluate the form basis functions and their arbitrary derivatives in canonical coordinates.
+
+# Arguments
+- `form_space::FormSpace{manifold_dim, form_rank, G}`: The form space.
+- `element_idx::Int`: Index of the element where the evaluation is performed.
+- `xi::Points.AbstractPoints{manifold_dim}`: Canonical points for evaluation.
+
+# Returns
+- `local_form_basis::Vector{Vector{Vector{Matrix{Float64}}}}`: The basis functions evaluated
+    at the canonical coordinates of the element.
+- `::Vector{Vector{Int}}`: The basis functions evaluated at the canonical coordinates of the
+    element.
+"""
+function _evaluate_form_in_canonical_coordinates(
+    form_space::FormSpace{manifold_dim, form_rank, G},
+    element_idx::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+    nderivatives::Int,
+) where {manifold_dim, form_rank, G}
+    # Evaluate the form spaces on parametric domain ...
+    local_form_basis, form_basis_indices = FunctionSpaces.evaluate(
+        get_fe_space(form_space), element_idx, xi, nderivatives
+    )  # (only evaluate the basis (0-th order derivative))
+    # ... and account for the transformation from a parametric mesh element to the canonical
+    # mesh element
+    local_form_basis = _pullback_to_canonical_coordinates(
+        get_geometry(form_space), local_form_basis, element_idx, form_rank
+    )
+
+    # We need to return form_basis_indices as a vector of vectors to allow for multiple
+    # index expressions, like the wedge
+    return local_form_basis, [form_basis_indices]
+end
+
+"""
+    _pullback_to_canonical_coordinates(
+        geometry::Geometry.AbstractGeometry{manifold_dim},
+        form_evaluations::Vector{Vector{Vector{Matrix{Float64}}}},
+        element_idx::Int,
+        form_rank::Int,
+    ) where {manifold_dim}
+
+Pullback the basis functions to the canonical coordinates of the element.
+
+# Arguments
+- `geometry::Geometry.AbstractGeometry{manifold_dim}`: The geometry of the form space.
+- `form_evaluations::Vector{Vector{Vector{Matrix{Float64}}}}`: The basis functions evaluated
+    at the parametric coordinates.
+- `element_idx::Int`: Index of the element to evaluate.
+- `form_rank::Int`: Rank of the form.
+
+# Returns
+- `form_evaluations::Vector{Vector{Vector{Matrix{Float64}}}}`: The form evaluations
+    pulled-back to canonical coordinates.
+"""
+function _pullback_to_canonical_coordinates(
+    geometry::Geometry.AbstractGeometry{manifold_dim},
+    form_evaluations::Vector{Vector{Vector{Matrix{Float64}}}},
+    element_idx::Int,
+    form_rank::Int,
+) where {manifold_dim}
+
+    # Pullback the evaluations to the canonical coordinates of the element
+    if form_rank > 0
+        # Get the element dimensions
+        element_dimensions = Geometry.get_element_lengths(geometry, element_idx)
+        for i in eachindex(form_evaluations)
+            for j in eachindex(form_evaluations[i])
+                if form_rank == manifold_dim
+                    form_evaluations[i][j][1] .*= prod(element_dimensions)
+                elseif form_rank == 1
+                    for k in 1:manifold_dim
+                        form_evaluations[i][j][k] .*= element_dimensions[k]
+                    end
+                elseif manifold_dim == 3
+                    form_evaluations[i][j][1] .*= prod(element_dimensions[2:3])
+                    form_evaluations[i][j][2] .*= prod(element_dimensions[1:2:3])
+                    form_evaluations[i][j][3] .*= prod(element_dimensions[1:2])
+                else
+                    throw(
+                        ArgumentError(
+                            "Mantis.Forms.evaluate: combination of " *
+                            "(form rank, manifold dim) = ($form_rank, $manifold_dim) " *
+                            "is not supported.",
+                        ),
+                    )
+                end
+            end
+        end
+    end
+
+    return form_evaluations
+end
+
+struct ConstantFormSpace{manifold_dim, form_rank, G} <:
+       AbstractFormSpace{manifold_dim, form_rank, G}
+    geometry::G
+    label::String
+
+    function ConstantFormSpace(
+        form_rank::Int, geometry::G, label::String
+    ) where {manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+        return new{manifold_dim, form_rank, G}(geometry, label)
+    end
+
+    function ConstantFormSpace(
+        ::Val{form_rank}, geometry::G, label::String
+    ) where {form_rank, manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+        return new{manifold_dim, form_rank, G}(geometry, label)
+    end
+end
+
+function evaluate(
+    form::ConstantFormSpace{manifold_dim, 0, G},
+    element_id::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+) where {manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+    n_evaluation_points = Points.get_num_points(xi)
+    return [ones(Float64, n_evaluation_points, 1)], [[1]]
+end
+
+function evaluate(
+    form::ConstantFormSpace{manifold_dim, manifold_dim, G},
+    element_idx::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+) where {manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+    n_evaluation_points = Points.get_num_points(xi)
+    J = Geometry.jacobian(form.geometry, element_idx, xi)  # Jₖⱼ = ∂Φᵏ\∂ξⱼ
+    form_eval = [ones(Float64, n_evaluation_points, 1)]
+    form_eval[1][:] .*= LinearAlgebra.det.(J)
+
+    return form_eval, [[1]]
+end
+
+function evaluate_exterior_derivative(
+    _::ConstantFormSpace{manifold_dim, 0, G},
+    _::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+) where {manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+    n_derivative_form_components = manifold_dim
+    n_basis_functions = 1
+    n_evaluation_points = Points.get_num_points(xi)
+
+    local_d_form_basis_eval = [
+        zeros(Float64, n_evaluation_points, n_basis_functions) for
+        _ in 1:n_derivative_form_components
+    ]
+
+    return local_d_form_basis_eval, [[1]]
+end
+
+function evaluate_exterior_derivative(
+    _::ConstantFormSpace{manifold_dim, manifold_dim, G},
+    _::Int,
+    xi::Points.AbstractPoints{manifold_dim},
+) where {manifold_dim, G <: Geometry.AbstractGeometry{manifold_dim}}
+    n_derivative_form_components = 1
+    n_basis_functions = 1
+    n_evaluation_points = Points.get_num_points(xi)
+
+    local_d_form_basis_eval = [
+        zeros(Float64, n_evaluation_points, n_basis_functions) for
+        _ in 1:n_derivative_form_components
+    ]
+
+    return local_d_form_basis_eval, [[1]]
+end
+
+function get_num_basis(
+    _::ConstantFormSpace{manifold_dim, form_rank, G}
+) where {manifold_dim, form_rank, G <: Geometry.AbstractGeometry{manifold_dim}}
+    return 1
+end
+
+function get_max_local_dim(
+    _::ConstantFormSpace{manifold_dim, form_rank, G}
+) where {manifold_dim, form_rank, G <: Geometry.AbstractGeometry{manifold_dim}}
+    return 1
+end
+
+get_form(form_space::ConstantFormSpace) = form_space
