@@ -18,3 +18,4 @@ branch `name/of/publication` you can run `git clone --single-branch
 ## Papers
 
 - @Cabanas2025 ([paper](https://arxiv.org/abs/2502.19542), [branch](https://github.com/MantisFEM/Research/tree/paper/2026/L-chain)).
+- @Dekker2026 ([paper](https://doi.org/10.1016/j.cam.2026.118179), [branch](https://github.com/MantisFEM/Research/tree/paper/2026/Weakly-C1)).
